@@ -1,162 +1,127 @@
-# Utility Scoring SaaS Platform
+# SaaS Platform for Utility Scoring
 
-A cloud-native SaaS platform that scores ethical scenarios on a utilitarian scale using a fine-tuned BERT model. The system is built as three FastAPI microservices, deployed on Kubernetes (Kind) behind an NGINX Ingress controller, with MongoDB for persistence and MLflow for model lifecycle management.
+A cloud-native SaaS that scores free-text scenarios on **utilitarian** ethical grounds. Users authenticate, submit scenarios, and receive a continuous utility score from a fine-tuned BERT model; scores and history are stored per user in MongoDB. The system is split into three FastAPI microservices, containerized with Docker, and orchestrated on Kubernetes (Kind for local development).
 
-**Author:** Mateo Marthoz
 
 ---
 
 ## Overview
 
-Users sign up and log in through a dedicated authentication service. The scoring service runs inference on free-text scenarios and returns a continuous utility score. The settings service lets authenticated users view their score history, change their password, or delete their account. Session cookies tie requests across services to a single user identity.
+| | |
+|---|---|
+| **Problem** | Automated ethical reasoning is needed when evaluating user-written scenarios (e.g. alignment checks, decision support). |
+| **Approach** | Fine-tune `bert-base-uncased` on paired better/worse scenarios from the [MetaEval utilitarianism dataset](https://github.com/metaeval/utilitarianism-dataset); deploy the best run for inference via REST. |
+| **Delivery** | Three microservices behind NGINX Ingress on a Kind cluster; Swagger UI as the API frontend. |
 
-The underlying model is **BERT-base-uncased**, fine-tuned on the [metaeval/utilitarianism](https://huggingface.co/datasets/metaeval/utilitarianism) dataset using pairwise ranking loss. Trained weights are packaged with MLflow and served from the scoring microservice.
+Possible extensions (not implemented): score explanations, more ethical alternatives, integration with generative-AI alignment pipelines, centralized auth, CI/CD, and model-drift monitoring.
 
 ---
 
 ## Architecture
 
 ```mermaid
-flowchart TB
-    Client[Client / Swagger UI]
-    Ingress[NGINX Ingress :8080]
+flowchart LR
+  subgraph client [Client]
+    U[User / Swagger UI]
+  end
 
-    subgraph Kubernetes Cluster
-        Auth[Authentication Service]
-        Score[Scoring Service]
-        Settings[Settings Service]
-    end
+  subgraph ingress [Kind cluster]
+    NGINX[NGINX Ingress :80]
+    AUTH[Authentication service]
+    SCORE[Scoring service]
+    SET[Settings service]
+  end
 
-    MongoDB[(MongoDB Atlas)]
+  subgraph data [Data & ML]
+    MONGO[(MongoDB)]
+    BERT[BERT utility model]
+  end
 
-    Client --> Ingress
-    Ingress -->|/authentication| Auth
-    Ingress -->|/scoring| Score
-    Ingress -->|/settings| Settings
-
-    Auth --> MongoDB
-    Score --> MongoDB
-    Settings --> MongoDB
-    Score --> Model[BERT Model via MLflow]
+  U --> NGINX
+  NGINX -->|/authentication| AUTH
+  NGINX -->|/scoring| SCORE
+  NGINX -->|/settings| SET
+  AUTH --> MONGO
+  SCORE --> BERT
+  SCORE --> MONGO
+  SET --> MONGO
 ```
 
-| Component | Role |
-|-----------|------|
-| **Authentication** | User signup and login; session cookie creation |
-| **Scoring** | BERT inference on scenarios; persists scores per user |
-| **Settings** | Score history, password change, account deletion |
-| **Ingress** | Path-based routing with prefix stripping |
-| **MongoDB** | Users and score history |
+| Service | Role |
+|---------|------|
+| **Authentication** | Signup, login, session cookies; stores user credentials. |
+| **Scoring** | Loads the MLflow-exported model, computes utility score, persists scenario + score. |
+| **Settings** | View scoring history, change password, delete account. |
 
-Each microservice runs **3 replicas** in Kubernetes for availability.
+**Operations:** Each service runs as a Kubernetes Deployment with **3 replicas**. Ingress path prefixes are defined in `kubernetes/microservices-ingress.yaml`. The scoring pod requests more CPU/memory than auth/settings (see `kubernetes/scoring-app.yaml`).
+
+**Database:** MongoDB holds users, sessions (via application logic), and per-user scenario history with scores.
 
 ---
 
-## Tech Stack
+## Model & evaluation
+
+- **Base model:** `bert-base-uncased` (Hugging Face Transformers).
+- **Training data:** [metaeval/utilitarianism](https://huggingface.co/datasets/metaeval/utilitarianism) — scenarios tokenized as even/odd pairs; training minimizes binary cross-entropy on pairwise “better vs worse” logits.
+- **Tracking:** [MLflow](https://mlflow.org/) logs hyperparameters, train/test accuracy, and versioned PyTorch artifacts under `fine-tuning/mlruns/`.
+- **Deployed artifact:** `microservices/scoring/model/` (exported from the best experiment).
+
+### Hyperparameter search (summary)
+
+| Learning rate | Batch size | Best test accuracy (epoch) |
+|---------------|------------|----------------------------|
+| 2e-5 | 16 | **73.4%** (epoch 3) — deployed |
+| 3e-5 | 8 | 72.9% |
+| 1e-5 | 16 | 72.9% |
+| 2e-5 | 16 | 51.8% (under-trained / early run) |
+
+The best configuration (batch size 16, learning rate `2e-5`) matches the analysis in the project report.
+
+### MLflow visualization
+
+![MLflow parallel coordinates: hyperparameters vs test accuracy](docs/figures/mlflow-parallel-coords.png)
+
+Training code: `fine-tuning/training.py`, `fine-tuning/main.py`, `fine-tuning/data_utils.py`.
+
+---
+
+## Tech stack
 
 | Layer | Technologies |
 |-------|----------------|
-| **API** | FastAPI, Pydantic, fastapi-sessions |
-| **ML** | PyTorch, Hugging Face Transformers, MLflow |
-| **Data** | MongoDB (PyMongo), Hugging Face Datasets |
-| **Infrastructure** | Docker, Kubernetes (Kind), NGINX Ingress |
-| **Model** | `bert-base-uncased` — sequence classification, ~72% pairwise test accuracy |
+| APIs | FastAPI, Pydantic, session cookies |
+| ML | PyTorch, Transformers, MLflow |
+| Data | MongoDB |
+| Runtime | Docker |
+| Orchestration | Kubernetes (Kind), NGINX Ingress |
+| Process | GitFlow (`main`, `dev`, feature branches) |
 
 ---
 
-## Prerequisites
+## Repository structure
 
-- **Linux** host (deployment script targets Debian/Ubuntu)
-- **Port 80** free on the host (NGINX Ingress Controller)
-- **`sudo`** privileges
-- A **MongoDB** connection string (e.g. MongoDB Atlas)
-- **Docker**, **kubectl**, and **Kind** — installed automatically by `deploy.sh` if missing
+```
+├── microservices/
+│   ├── authentication/   # Signup, login
+│   ├── scoring/          # Inference + model artifact
+│   └── settings/         # History, password, account deletion
+├── kubernetes/           # Deployments, services, ingress, Kind config
+├── fine-tuning/          # Training pipeline + MLflow runs
+├── deploy.sh             # Local Kind + build + deploy
+└── docs/
+    └── figures/          # README images (export from report)
+```
 
 ---
 
-## Quick Start
+## API at a glance
 
-### 1. Configure environment
-
-Create a `.env` file in the project root:
-
-```env
-SECRET_KEY=your_secret_key_for_session_cookies
-MONGO_URI=your_mongodb_connection_string
-```
-
-`deploy.sh` copies this file into each microservice before building images.
-
-### 2. Deploy
-
-```bash
-sudo ./deploy.sh
-```
-
-The script will:
-
-1. Create a Kind cluster (`mycluster`)
-2. Deploy the NGINX Ingress Controller
-3. Build and load Docker images for all three services
-4. Apply Kubernetes deployments and ingress rules
-5. Port-forward the ingress controller to **localhost:8080**
-
-Keep the terminal open while using the platform — port-forwarding runs in the foreground.
-
-### 3. Explore the API
-
-| Service | Swagger UI |
-|---------|------------|
-| Authentication | http://localhost:8080/authentication/docs |
-| Scoring | http://localhost:8080/scoring/docs |
-| Settings | http://localhost:8080/settings/docs |
-
-**Typical flow:** sign up → log in (on any service) → score scenarios → view history in Settings.
-
----
-
-## API Reference
-
-### Authentication (`/authentication`)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/signup` | Register a new user |
-| `POST` | `/login` | Authenticate and receive a session cookie |
-
-**Signup request:**
+**Score a scenario** (after login on the scoring service):
 
 ```json
-{
-  "username": "test_user",
-  "password": "test_password"
-}
+POST /utility_score
+{ "scenario": "A scenario description here." }
 ```
-
-**Signup response:**
-
-```json
-{
-  "message": "User created successfully"
-}
-```
-
-### Scoring (`/scoring`)
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/login` | — | Obtain session cookie |
-| `POST` | `/utility_score` | Cookie | Score a scenario |
-
-**Score request:**
-
-```json
-{
-  "scenario": "A scenario description here."
-}
-```
-
-**Score response:**
 
 ```json
 {
@@ -165,69 +130,21 @@ Keep the terminal open while using the platform — port-forwarding runs in the 
 }
 ```
 
-### Settings (`/settings`)
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/login` | — | Obtain session cookie |
-| `GET` | `/history` | Cookie | List past scores for the current user |
-| `PUT` | `/change-password` | Cookie | Update password (`new_password` query param) |
-| `DELETE` | `/delete-account` | Cookie | Remove user and all associated scores |
-
 ---
 
-## Fine-Tuning the Model
+## Design decisions & limitations
 
-Training code lives in `fine-tuning/`. It loads `metaeval/utilitarianism`, fine-tunes BERT with a pairwise ranking objective, and logs metrics and artifacts to MLflow.
+**Decisions**
 
-```bash
-cd fine-tuning
-pip install -r requirements.txt
+- **Microservices** isolate lightweight auth/settings from CPU-heavy BERT inference and allow independent scaling (e.g. scoring pods at 500m–1000m CPU).
+- **MongoDB** fits variable user and history documents without rigid schema migrations.
+- **Kind + Ingress** gives a production-like path on a single machine (host port 80 → cluster ingress).
 
-python main.py \
-  --nepochs 3 \
-  --batch_size 32 \
-  --learning_rate 2e-5
-```
+**Limitations**
 
-After training, copy the logged model artifact into the scoring service:
+- Session auth is **per service**, not centralized JWT/SSO.
+- No CI/CD or production monitoring (Evidently, Azure Monitor, etc.) in-repo.
+- Model accuracy (~73% test) and inference cost could be improved with distillation, quantization, or GPU nodes.
+- Sustainability optimizations (auto-scaling policies, CodeCarbon, region selection) are discussed in the report but not fully implemented.
 
-```
-fine-tuning/mlruns/<run_id>/artifacts/model/  →  microservices/scoring/model/
-```
-
-Rebuild the scoring Docker image and redeploy for the new weights to take effect.
-
----
-
-## Project Structure
-
-```
-├── deploy.sh                    # End-to-end Kind + K8s deployment
-├── kubernetes/
-│   ├── cluster-config.yml       # Kind cluster configuration
-│   ├── deploy.yaml              # NGINX Ingress Controller
-│   ├── authentication-app.yaml
-│   ├── scoring-app.yaml
-│   ├── settings-app.yaml
-│   └── microservices-ingress.yaml
-├── microservices/
-│   ├── authentication/          # Signup & login
-│   ├── scoring/                 # BERT inference + score storage
-│   │   └── model/               # MLflow-packaged weights
-│   └── settings/                # History, password, account management
-└── fine-tuning/
-    ├── main.py                  # Training entry point
-    ├── training.py              # Train / evaluate loops
-    ├── data_utils.py            # Dataset loading & tokenization
-    └── load_model.py            # Model & optimizer setup
-```
-
----
-
-## Development Notes
-
-- **Sessions** are shared across services via a common `SECRET_KEY` and cookie backend in `shared/session_manager.py`.
-- **Scoring** runs inference on CPU by default (`map_location="cpu"` in `load_model.py`).
-- **Ingress** strips path prefixes (`/authentication`, `/scoring`, `/settings`) before forwarding to each service — FastAPI routes are defined without those prefixes.
-- Ensure **port 80** is not in use before deploying; the ingress controller binds to it inside the cluster.
+**Future work:** explanations for scores, ethical alternatives, unified auth, automated pipelines, drift monitoring.
