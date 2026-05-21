@@ -1,0 +1,15 @@
+artifact_uri: file:///home/mateo/fine_tune/mlruns/0/8d4676fe8f2a4258b920be0edf66722a/artifacts
+end_time: 1733216600135
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 8d4676fe8f2a4258b920be0edf66722a
+run_name: righteous-ram-220
+run_uuid: 8d4676fe8f2a4258b920be0edf66722a
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1733215811547
+status: 3
+tags: []
+user_id: mateo

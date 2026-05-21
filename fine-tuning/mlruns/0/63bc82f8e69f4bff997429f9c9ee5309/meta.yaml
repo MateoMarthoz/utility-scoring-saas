@@ -1,0 +1,15 @@
+artifact_uri: file:///home/mateo/fine_tune/mlruns/0/63bc82f8e69f4bff997429f9c9ee5309/artifacts
+end_time: 1733280444523
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 63bc82f8e69f4bff997429f9c9ee5309
+run_name: languid-donkey-841
+run_uuid: 63bc82f8e69f4bff997429f9c9ee5309
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1733279664109
+status: 3
+tags: []
+user_id: mateo

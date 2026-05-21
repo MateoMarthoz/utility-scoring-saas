@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scoring-app
+  labels:
+    app: scoring
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: scoring
+  template:
+    metadata:
+      labels:
+        app: scoring
+    spec:
+      containers:
+        - name: scoring-app
+          image: scoring
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: scoring-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: scoring
+  ports:
+    - port: 8080
+      targetPort: 8080

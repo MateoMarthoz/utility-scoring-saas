@@ -1,0 +1,12 @@
+name: docker-utilitarianism
+
+docker_env:
+  image: mlflow-docker-utilitarianism
+
+entry_points:
+  train:
+    parameters:
+      nepochs: {type: int, default: 2}
+      batch_size: {type: int, default: 16}
+      learning_rate: {type: float, default: 2e-5}
+    command: "python3 main.py --nepochs {nepochs} --batch_size {batch_size} --learning_rate {learning_rate}"

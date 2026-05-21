@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: settings-app
+  labels:
+    app: settings
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: settings
+  template:
+    metadata:
+      labels:
+        app: settings
+    spec:
+      containers:
+        - name: settings-app
+          image: settings
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: settings-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: settings
+  ports:
+    - port: 8080
+      targetPort: 8080
+

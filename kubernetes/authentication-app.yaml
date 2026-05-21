@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentication-app
+  labels:
+    app: authentication
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: authentication
+  template:
+    metadata:
+      labels:
+        app: authentication
+    spec:
+      containers:
+        - name: authentication-app
+          image: authentication
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: authentication-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: authentication
+  ports:
+    - port: 8080
+      targetPort: 8080

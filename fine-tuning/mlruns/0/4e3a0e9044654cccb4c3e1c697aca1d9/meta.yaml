@@ -1,0 +1,15 @@
+artifact_uri: file:///home/mateo/fine_tune/mlruns/0/4e3a0e9044654cccb4c3e1c697aca1d9/artifacts
+end_time: 1733208990680
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 4e3a0e9044654cccb4c3e1c697aca1d9
+run_name: righteous-ant-127
+run_uuid: 4e3a0e9044654cccb4c3e1c697aca1d9
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1733187649595
+status: 3
+tags: []
+user_id: mateo

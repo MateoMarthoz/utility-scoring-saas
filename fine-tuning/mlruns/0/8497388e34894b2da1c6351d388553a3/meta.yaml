@@ -1,0 +1,15 @@
+artifact_uri: file:///home/mateo/fine_tune/mlruns/0/8497388e34894b2da1c6351d388553a3/artifacts
+end_time: 1733214986029
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 8497388e34894b2da1c6351d388553a3
+run_name: respected-slug-527
+run_uuid: 8497388e34894b2da1c6351d388553a3
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1733214225266
+status: 3
+tags: []
+user_id: mateo

@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: microservices-ingress
+  annotations:
+    spec.ingressClassName: nginx
+    nginx.ingress.kubernetes.io/use-regex: "true"  # Enable regex for flexible path matching
+    nginx.ingress.kubernetes.io/rewrite-target: /$2  # Strip path prefix before forwarding to services
+spec:  
+  rules:
+  - http:
+      paths:
+      # Authentication Service
+      - pathType: ImplementationSpecific
+        path: /authentication(/|$)(.*)  # Matches /auth and all subpaths like /auth/signup
+        backend:
+          service:
+            name: authentication-service
+            port:
+              number: 8080
+      # Score Service
+      - pathType: ImplementationSpecific
+        path: /scoring(/|$)(.*)  # Matches /score and all subpaths
+        backend:
+          service:
+            name: scoring-service
+            port:
+              number: 8080
+      # Settings Service
+      - pathType: ImplementationSpecific
+        path: /settings(/|$)(.*)  # Matches /settings and all subpaths like /settings/history
+        backend:
+          service:
+            name: settings-service
+            port:
+              number: 8080

@@ -1,0 +1,9 @@
+fastapi[standard]
+pydantic
+pymongo
+numpy
+torch
+mlflow
+transformers
+fastapi_sessions
+python-dotenv
