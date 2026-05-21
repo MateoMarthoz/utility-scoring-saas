@@ -231,9 +231,3 @@ Rebuild the scoring Docker image and redeploy for the new weights to take effect
 - **Scoring** runs inference on CPU by default (`map_location="cpu"` in `load_model.py`).
 - **Ingress** strips path prefixes (`/authentication`, `/scoring`, `/settings`) before forwarding to each service — FastAPI routes are defined without those prefixes.
 - Ensure **port 80** is not in use before deploying; the ingress controller binds to it inside the cluster.
-
----
-
-## Coursework
-
-Developed as part of **5CCSACCA** (Advanced Cloud Computing Architecture), King's College London.
