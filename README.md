@@ -1,5 +1,7 @@
 # SaaS Platform for Utility Scoring
 
+*December 2024*
+
 A cloud-native SaaS that scores free-text scenarios on **utilitarian** ethical grounds. Users authenticate, submit scenarios, and receive a continuous utility score from a fine-tuned BERT model; scores and history are stored per user in MongoDB. The system is split into three FastAPI microservices, containerized with Docker, and orchestrated on Kubernetes (Kind for local development).
 
 
